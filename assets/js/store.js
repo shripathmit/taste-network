@@ -10,7 +10,7 @@ window.TN = window.TN || {};
   const ui = TN.ui;
   const R = (key)=> TN.sb.configured() ? TN.sb.client().from(key) : null;
 
-  const cache = { tests: [], responses: [], credits: [], counts: {} };
+  const cache = { tests: [], responses: [], credits: [], counts: {}, users: [] };
   let readyResolve = null;
   const ready = new Promise(res => { readyResolve = res; });
   let refreshed = false;
@@ -67,14 +67,22 @@ window.TN = window.TN || {};
     };
   }
 
+  function userFromRow(r){
+    return {
+      id: r.id, email: r.email || "", name: r.name || "",
+      role: r.role || "", isAdmin: !!r.is_admin, createdAt: ms(r.created_at)
+    };
+  }
+
   /* ---------- hydration ---------- */
   async function refresh(){
     if (!TN.sb.configured()){ if (!refreshed){ refreshed = true; readyResolve(); } return; }
     try {
-      const [tRes, rRes, cRes] = await Promise.all([
+      const [tRes, rRes, cRes, uRes] = await Promise.all([
         R("tests").select("*").order("created_at", { ascending: false }).limit(500),
         R("responses").select("*").order("created_at", { ascending: false }).limit(2000),
-        R("credit_ledger").select("*").order("created_at", { ascending: false }).limit(500)
+        R("credit_ledger").select("*").order("created_at", { ascending: false }).limit(500),
+        R("profiles").select("id,email,name,role,is_admin,created_at").order("created_at", { ascending: false }).limit(500)
       ]);
       if (tRes.error) throw tRes.error;
       if (rRes.error) throw rRes.error;
@@ -83,6 +91,8 @@ window.TN = window.TN || {};
       cache.credits = (cRes.data || []).map(c => ({
         id: c.id, userId: c.user_id, delta: c.delta, reason: c.reason, createdAt: ms(c.created_at)
       }));
+      // profiles: RLS lets admins read all, others only their own row
+      cache.users = (!uRes.error && uRes.data ? uRes.data : []).map(userFromRow);
       // public counts for live tests (content stays private under RLS)
       try {
         const { data, error } = await TN.sb.client().rpc("live_response_counts");
@@ -243,6 +253,10 @@ window.TN = window.TN || {};
     return "fp_"+(h>>>0).toString(36);
   }
 
+  /* ---------- users (admin view) ---------- */
+  function getUsers(){ return cache.users.slice(); }
+  function findUserById(id){ return cache.users.find(u => u.id === id); }
+
   TN.store = {
     ready,
     refresh,
@@ -251,6 +265,7 @@ window.TN = window.TN || {};
     addResponse, updateResponse, setWantMoreFeedback, hasResponded, duplicateReason,
     getCredits, addCredit, creditBalance, creditHistory,
     getPendingCredits, addPendingCredit, claimPendingCredits,
+    getUsers, findUserById,
     deviceId, fingerprint
   };
 })();

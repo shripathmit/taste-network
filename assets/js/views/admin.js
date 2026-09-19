@@ -7,6 +7,8 @@ TN.views = TN.views || {};
   function row(cells){ return "<tr>"+cells.map(c=>"<td>"+c+"</td>").join("")+"</tr>"; }
 
   TN.views.admin = function(){
+    const me = TN.auth.currentUser();
+    if (!TN.auth.isAdmin(me)){ location.hash = "#/dashboard"; return; }
     const app = document.getElementById("app");
     const users = S.getUsers(), tests = S.getTests(), responses = S.getResponses();
 
@@ -22,7 +24,7 @@ TN.views = TN.views || {};
     const flagged = responses.filter(r=>r.moderation.status==="flagged"||r.moderation.creatorMark==="flagged");
 
     app.innerHTML = '<div class="wrap"><h2>Admin</h2>'+
-      '<p class="small">Internal view. Allowlisted emails only: '+ui.esc(TN_CONFIG.adminEmails.join(", "))+'</p>'+
+      '<p class="small">Internal view. Visible to admin accounts only.</p>'+
 
       '<div class="stat-row">'+
       '<div class="stat"><div class="n">'+users.length+'</div><div class="l">users ('+newUsers+' new / 7d)</div></div>'+
