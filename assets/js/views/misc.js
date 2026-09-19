@@ -7,17 +7,19 @@ TN.views = TN.views || {};
   TN.views.give = function(){
     const tests = S.liveLinkTests();
     const app = document.getElementById("app");
+    const arts = ["assets/img/band-abstract.jpg","assets/img/hero-abstract.jpg","assets/img/orb-abstract.jpg"];
     app.innerHTML = '<div class="wrap"><h2>Give feedback</h2>'+
-      '<p class="lede">Real people, real judgment. Pick a test, compare the options, and say what resonates — and why.</p>'+
-      (tests.length ? '<div class="card-grid mt">'+tests.map(t=>{
+      '<p class="lede">Pick a test, compare the options, say what resonates — and why.</p>'+
+      (tests.length ? '<div class="card-grid mt">'+tests.map((t,i)=>{
         const n = S.responseCount(t.id);
         const goal = (TN_CONFIG.goals.find(g=>g.id===t.goal)||{}).label;
-        return '<div class="card"><p class="eyebrow">'+ui.esc(goal||"")+'</p>'+
+        return '<div class="card give-card"><div class="give-art" style="background-image:url('+arts[i%arts.length]+')"></div>'+
+          '<div class="give-body"><p class="eyebrow">'+ui.esc(goal||"")+'</p>'+
           '<h3>'+ui.esc(t.title)+'</h3>'+
           '<p class="small">'+t.variations.length+' options · '+n+' response'+(n===1?"":"s")+' so far</p>'+
-          '<a class="btn btn-primary btn-sm" href="#/t/'+t.publicId+'">Weigh in</a></div>';
+          '<a class="btn btn-primary btn-sm" href="#/t/'+t.publicId+'">Weigh in</a></div></div>';
       }).join("")+'</div>'
-      : '<div class="empty-state"><h3>Nothing open right now</h3><p>When creators share open tests, they’ll appear here.</p></div>')+
+      : '<div class="empty-state"><div class="empty-art" style="background-image:url(assets/img/orb-abstract.jpg)"></div><h3>Nothing open right now</h3><p>When creators share open tests, they’ll appear here.</p></div>')+
       '</div>';
   };
 
@@ -25,21 +27,18 @@ TN.views = TN.views || {};
     document.getElementById("app").innerHTML =
     '<div class="wrap"><p class="eyebrow">How it works</p><h2>Human judgment, structured well</h2>'+
     '<div class="how-grid">'+
-    '<div class="step-card"><div class="step-num">1</div><h3>Creators add variations</h3><p>Two to five versions of a name, headline, design, or pitch — plus the question they want answered and the lens (clarity, trust, curiosity…) to judge it through.</p></div>'+
-    '<div class="step-card"><div class="step-num">2</div><h3>People compare and explain</h3><p>Respondents see options in random order, pick one (or “none of these”), and write <em>why</em>. Every response includes a choice and a reason — no account needed.</p></div>'+
-    '<div class="step-card"><div class="step-num">3</div><h3>Creators read and decide</h3><p>Results show what resonated and why, with disagreement kept visible. The creator makes the final call — always.</p></div>'+
+    '<div class="step-card"><div class="step-num">1</div><h3>Add variations</h3><p>Two to five versions — plus the question you want answered and the lens to judge it through.</p></div>'+
+    '<div class="step-card"><div class="step-num">2</div><h3>People compare</h3><p>Options appear in random order. Each person picks one and writes <em>why</em>. No account needed.</p></div>'+
+    '<div class="step-card"><div class="step-num">3</div><h3>You decide</h3><p>See what resonated and why, with disagreement kept visible. The final call is always yours.</p></div>'+
     '</div>'+
-    '<h3>What AI does and doesn’t do here</h3>'+
-    '<div class="two-col"><div class="panel"><h4>AI may help with</h4><ul class="small">'+
-    '<li>Turning a vague draft into a clearer feedback question</li>'+
-    '<li>Detecting spam or repeated responses</li>'+
-    '<li>Grouping comments by theme — always labeled <em>“Organized themes from human feedback”</em></li>'+
-    '<li>Moderating abusive content</li></ul></div>'+
+    '<h3>AI’s role here</h3>'+
+    '<div class="two-col"><div class="panel"><h4>AI may</h4><ul class="small">'+
+    '<li>Help phrase a clearer feedback question</li>'+
+    '<li>Flag spam or duplicate responses</li>'+
+    '<li>Group comments by theme — always labeled as such</li></ul></div>'+
     '<div class="panel"><h4>AI never</h4><ul class="small">'+
-    '<li>Casts a vote or picks a winner</li>'+
-    '<li>Claims an option is objectively better</li>'+
-    '<li>Imitates or invents human feedback</li>'+
-    '<li>Presents a summary as its own judgment</li></ul></div></div>'+
+    '<li>Votes, picks a winner, or claims an option is better</li>'+
+    '<li>Invents or imitates human feedback</li></ul></div></div>'+
     '<div class="center mt"><a class="btn btn-primary" href="#/signup">Create a test</a> <a class="btn btn-secondary" href="#/give">Give feedback</a></div></div>';
   };
 
@@ -76,10 +75,10 @@ TN.views = TN.views || {};
     const flag = TN_CONFIG.flags.creditsRequired;
     document.getElementById("app").innerHTML = '<div class="wrap-narrow"><div class="panel" style="max-width:640px;margin:1rem auto">'+
       '<p class="eyebrow">Credits</p><h2>'+bal+' credit'+(bal===1?"":"s")+'</h2>'+
-      '<p class="small">Thoughtful feedback earns credits. One day, credits will unlock test creation and paid contributor pools — <strong>for now they’re purely a thank-you and never block anything.</strong></p>'+
+      '<p class="small">Thoughtful feedback earns credits. For now they’re a thank-you — they don’t unlock or block anything.</p>'+
       (flag
         ? '<div class="demo-banner">Credit requirements are ON (admin flag). Publishing a test costs 1 credit per 5 responses requested.</div>'
-        : '<div class="form-note"><strong>Credits coming soon.</strong> Paid tests and contributor payouts aren’t part of this version. The ledger below is ready for when they are — it’s built to support Stripe payments later.</div>')+
+        : "")+
       '<h3>Ledger</h3>'+
       (hist.length? '<table class="admin-table"><thead><tr><th>When</th><th>Change</th><th>Reason</th></tr></thead><tbody>'+
         hist.map(c=>'<tr><td>'+ui.timeAgo(c.createdAt)+'</td><td>'+(c.delta>0?"+":"")+c.delta+'</td><td>'+ui.esc(c.reason)+'</td></tr>').join("")+'</tbody></table>'

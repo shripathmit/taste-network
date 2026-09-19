@@ -15,8 +15,8 @@ TN.views = TN.views || {};
 
     let list;
     if (!tests.length){
-      list = '<div class="empty-state"><h3>No tests yet</h3>'+
-        '<p>Create your first test: add two to five versions of what you’re deciding on, share a private link, and hear what real people think.</p>'+
+      list = '<div class="empty-state"><div class="empty-art" style="background-image:url(assets/img/orb-abstract.jpg)"></div><h3>No tests yet</h3>'+
+        '<p>Add two to five versions of what you’re deciding on, share a private link, and hear what real people think.</p>'+
         '<a class="btn btn-primary" href="#/tests/new">Create your first test</a></div>';
     } else {
       list = tests.map(t=>{
@@ -43,7 +43,7 @@ TN.views = TN.views || {};
     app.innerHTML =
       '<div class="wrap"><div class="page-head"><div>'+
       '<h2 style="margin-bottom:.2rem">My tests</h2>'+
-      '<p class="small" style="margin:0">Private by default. Share a link only with the people whose judgment you want.</p>'+
+      '<p class="small" style="margin:0">Private by default — share a link only with people whose judgment you want.</p>'+
       '</div><a class="btn btn-primary" href="#/tests/new">Create test</a></div>'+
       list+'</div>';
 

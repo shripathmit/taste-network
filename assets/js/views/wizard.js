@@ -115,7 +115,7 @@ TN.views = TN.views || {};
   }
   function step3(){
     shell(
-      '<h3>Add your variations</h3><p class="small">Two to five versions. At least two need text or an image. Order here doesn’t matter — respondents see them shuffled.</p>'+
+      '<h3>Add your variations</h3><p class="small">Two to five versions. Respondents see them in random order.</p>'+
       '<div id="vars">'+draft.variations.map(varCard).join("")+'</div>'+
       (draft.variations.length<5?'<button class="btn btn-secondary btn-sm" id="v-add">+ Add variation</button>':""));
     bindVars();
@@ -280,7 +280,7 @@ TN.views = TN.views || {};
       '<div class="review-row"><dt>Names</dt><dd>'+(draft.config.anonymous==="visible"?"Visible to you":"Hidden from you")+'</dd></div>'+
       (draft.config.deadline?'<div class="review-row"><dt>Deadline</dt><dd>'+ui.fmtDate(draft.config.deadline)+'</dd></div>':"")+
       '</dl>'+
-      '<div class="form-note"><strong>Every response includes a choice and a written reason.</strong><br>Taste Network does not use AI to judge your options.</div>'+
+      '<div class="form-note"><strong>Choice + reason, every time.</strong><br>No AI judges your options.</div>'+
       '<button class="btn btn-primary btn-block" id="w-publish">Publish test</button>'+
       '<p class="small center mt">You can close the test any time from your dashboard.</p>');
     document.getElementById("w-publish").onclick = async (e)=>{

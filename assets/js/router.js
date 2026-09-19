@@ -33,7 +33,7 @@ window.TN = window.TN || {};
   function footerHTML(){
     return '<div class="wrap footer-grid">'+
       '<div><a class="brand" href="#/" style="font-size:1.05rem"><span class="brand-mark" aria-hidden="true"></span>Taste Network</a>'+
-      '<p class="footer-note">A human taste network that helps you choose what to ship. No AI judges your work — real people make the call.</p></div>'+
+      '<p class="footer-note">A human taste network for choosing what to ship. No AI judges your work — real people make the call.</p></div>'+
       '<div class="footer-links">'+
       '<a href="#/how">How it works</a><a href="#/privacy">Privacy</a><a href="#/terms">Terms</a>'+
       '<a href="mailto:'+TN_CONFIG.supportEmail+'">Contact</a></div></div>';

@@ -56,7 +56,7 @@ TN.views = TN.views || {};
       wrap(
         '<p class="eyebrow">You’re invited to weigh in</p>'+
         '<h2>'+ui.esc(t.title)+'</h2>'+
-        '<p class="lede">Your feedback will help someone decide what to ship.</p>'+
+        '<p class="lede">Your feedback helps someone decide what to ship.</p>'+
         (t.context?'<div class="form-note">'+ui.esc(t.context)+'</div>':"")+
         '<div class="field"><label for="r-name">Your name <span class="hint">— optional'+(t.config.anonymous==="hidden"?"; hidden from the creator":"")+'</span></label>'+
         '<input id="r-name" type="text" autocomplete="name" maxlength="60" placeholder="How should we credit your take?"></div>'+
@@ -257,12 +257,12 @@ TN.views = TN.views || {};
 
     function sThanks(){
       const me = TN.auth.currentUser();
-      wrap('<div class="thanks"><div class="big" aria-hidden="true">🙏</div>'+
-        '<h2>Thank you.</h2><p class="lede" style="max-width:26em;margin:0 auto 1.5rem">Your human perspective matters.</p>'+
+      wrap('<div class="thanks"><img class="thanks-art" src="assets/img/orb-abstract.jpg" alt="" aria-hidden="true">'+
+        '<h2>Thank you.</h2><p class="small" style="max-width:26em;margin:0 auto 1.5rem">Your perspective matters.</p>'+
         '<label class="check-row" style="max-width:26em;margin:0 auto 1.5rem;text-align:left"><input type="checkbox" id="r-wantmore">'+
         '<span><span class="t">Keep me in the loop</span><br><span class="d">I’m open to giving feedback on future tests.</span></span></label>'+
         (me
-          ? '<p class="small">+'+TN_CONFIG.credits.perThoughtfulResponse+' feedback credit added to your account. <a href="#/credits">View credits</a></p>'
+          ? '<p class="small">+'+TN_CONFIG.credits.perThoughtfulResponse+' feedback credit added. <a href="#/credits">View credits</a></p>'
           : '<div class="card" style="max-width:26em;margin:0 auto"><p class="small"><strong>Want credit for your taste?</strong> Create a free account to collect feedback credits and run your own tests.</p><a class="btn btn-primary btn-sm" href="#/signup">Create a free account</a></div>')+
         '</div>');
       document.getElementById("r-wantmore").onchange = e=>{

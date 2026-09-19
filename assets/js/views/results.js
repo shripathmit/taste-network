@@ -196,7 +196,7 @@ TN.views = TN.views || {};
     /* decision reflection */
     const d = t.decision || {};
     html += '<div class="panel"><h3>Your decision</h3>'+
-      '<p class="small">Based on this feedback, what do you want to do next? Only you decide what ships.</p>'+
+      '<p class="small">What next? Only you decide what ships.</p>'+
       '<div class="decision-options" role="radiogroup" aria-label="Decision">'+
       [["ship","Ship this version"],["revise","Revise and retest"],["new","Test a new direction"],["undecided","I’m still deciding"]].map(([v,l])=>
         '<label class="check-row"><input type="radio" name="decision" value="'+v+'"'+(d.choice===v?" checked":"")+'><span class="t">'+l+'</span></label>').join("")+

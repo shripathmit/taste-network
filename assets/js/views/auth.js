@@ -6,10 +6,12 @@ TN.views = TN.views || {};
 
   function shell(title, inner, sub){
     document.getElementById("app").innerHTML =
-      '<div class="wrap-narrow"><div class="card" style="max-width:460px;margin:1rem auto">'+
+      '<div class="wrap-narrow"><div class="auth-shell">'+
+      '<div class="auth-art" style="background-image:url(assets/img/orb-abstract.jpg)" aria-hidden="true"></div>'+
+      '<div class="auth-body">'+
       '<h2 style="margin-bottom:.25rem">'+ui.esc(title)+'</h2>'+
       (sub?'<p class="small">'+sub+'</p>':"")+
-      '<div id="form-err"></div>'+inner+'</div></div>';
+      '<div id="form-err"></div>'+inner+'</div></div></div>';
   }
   function err(msg){
     document.getElementById("form-err").innerHTML = '<div class="form-error" role="alert">'+ui.esc(msg)+'</div>';
@@ -69,8 +71,8 @@ TN.views = TN.views || {};
           <p class="hint">At least 8 characters.</p></div>
         <button class="btn btn-primary btn-block" type="submit">Create account</button>
       </form>
-      <p class="small center mt">Already have an account? <a href="#/login">Log in</a></p>`,
-      "Start comparing with real human feedback in minutes.");
+      <p class="small center mt">Have an account? <a href="#/login">Log in</a></p>`,
+      "Real human feedback in minutes.");
     document.getElementById("f-signup").onsubmit = async e => {
       e.preventDefault();
       try {
@@ -81,10 +83,12 @@ TN.views = TN.views || {};
         });
         if (needsConfirmation){
           document.getElementById("app").innerHTML =
-            '<div class="wrap-narrow"><div class="card" style="max-width:460px;margin:1rem auto">'+
+            '<div class="wrap-narrow"><div class="auth-shell">'+
+            '<div class="auth-art" style="background-image:url(assets/img/hero-abstract.jpg)" aria-hidden="true"></div>'+
+            '<div class="auth-body">'+
             '<h2>Check your email</h2>'+
             '<p>We sent a confirmation link to <strong>'+ui.esc(email)+'</strong>. Click it, then log in.</p>'+
-            '<p class="small"><a href="#/login">Back to log in</a></p></div></div>';
+            '<p class="small"><a href="#/login">Back to log in</a></p></div></div></div>';
           return;
         }
         if (claimed > 0) ui.toast("Welcome! "+claimed+" feedback credit"+(claimed>1?"s":"")+" added from your earlier responses.");
@@ -98,11 +102,13 @@ TN.views = TN.views || {};
     const q = new URLSearchParams((location.hash.split("?")[1]||""));
     const email = q.get("e");
     document.getElementById("app").innerHTML =
-      '<div class="wrap-narrow"><div class="card" style="max-width:480px;margin:1rem auto">'+
+      '<div class="wrap-narrow"><div class="auth-shell">'+
+      '<div class="auth-art" style="background-image:url(assets/img/band-abstract.jpg)" aria-hidden="true"></div>'+
+      '<div class="auth-body">'+
       '<h2>Check your email</h2>'+
       '<p>We sent a sign-in link to <strong>'+ui.esc(email||"your inbox")+'</strong>. It expires in 15 minutes.</p>'+
-      '<p class="small">Click the link in the email and you’ll be signed in automatically.</p>'+
-      '</div></div>';
+      '<p class="small">Click the link and you’ll be signed in automatically.</p>'+
+      '</div></div></div>';
   };
 
   TN.views.onboarding = function(){
