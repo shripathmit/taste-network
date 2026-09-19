@@ -283,10 +283,19 @@ TN.views = TN.views || {};
       '<div class="form-note"><strong>Every response includes a choice and a written reason.</strong><br>Taste Network does not use AI to judge your options.</div>'+
       '<button class="btn btn-primary btn-block" id="w-publish">Publish test</button>'+
       '<p class="small center mt">You can close the test any time from your dashboard.</p>');
-    document.getElementById("w-publish").onclick = ()=>{
+    document.getElementById("w-publish").onclick = async (e)=>{
+      const btn = e.target.closest("button") || document.getElementById("w-publish");
+      btn.disabled = true;
       draft.status = "live";
       draft.publishedAt = Date.now();
-      S.upsertTest(draft);
+      try {
+        await S.upsertTest(draft);
+      } catch(ex){
+        draft.status = "draft";
+        btn.disabled = false;
+        ui.toast("Couldn't publish: " + ex.message);
+        return;
+      }
       ui.toast("Your test is live.");
       location.hash = "#/tests/"+draft.id+"/published";
     };

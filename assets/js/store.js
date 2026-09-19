@@ -114,10 +114,18 @@ window.TN = window.TN || {};
   function getTestByPublicId(pid){ return cache.tests.find(t => t.publicId === pid); }
   async function upsertTest(test){
     const me = TN.auth && TN.auth.currentUser();
-    const { error } = await R("tests").upsert(testToRow(test, me && me.id), { onConflict: "id" });
-    if (error) throw new Error("Couldn’t save the test: " + error.message);
+    // optimistic cache update so the UI never shows stale state; rolled back on failure
     const i = cache.tests.findIndex(t => t.id === test.id);
+    const prev = i >= 0 ? cache.tests[i] : null;
     if (i >= 0) cache.tests[i] = test; else cache.tests.unshift(test);
+    try {
+      const { error } = await R("tests").upsert(testToRow(test, me && me.id), { onConflict: "id" });
+      if (error) throw new Error("Couldn't save the test: " + error.message);
+    } catch(ex){
+      if (prev) cache.tests[i] = prev;
+      else { const j = cache.tests.findIndex(t => t.id === test.id); if (j >= 0) cache.tests.splice(j, 1); }
+      throw ex;
+    }
     return test;
   }
   function myTests(userId){
@@ -162,11 +170,18 @@ window.TN = window.TN || {};
     return r;
   }
   async function updateResponse(r){
-    const { error } = await R("responses").update({ moderation: r.moderation, flags: r.flags })
-      .eq("id", r.id);
-    if (error) throw new Error("Couldn’t update the response: " + error.message);
+    // optimistic cache update; rolled back on failure
     const i = cache.responses.findIndex(x => x.id === r.id);
+    const prev = i >= 0 ? cache.responses[i] : null;
     if (i >= 0) cache.responses[i] = r;
+    try {
+      const { error } = await R("responses").update({ moderation: r.moderation, flags: r.flags })
+        .eq("id", r.id);
+      if (error) throw new Error("Couldn't update the response: " + error.message);
+    } catch(ex){
+      if (prev && i >= 0) cache.responses[i] = prev;
+      throw ex;
+    }
     return r;
   }
   // Post-submit "keep me in the loop" toggle. Respondents can't UPDATE rows
