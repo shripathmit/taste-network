@@ -67,7 +67,7 @@ img{max-width:100%;height:auto;display:block}
 /* pastel band: full-bleed section with abstract art */
 .band{position:relative;overflow:hidden;background:var(--blush)}
 .band .band-art{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.55}
-.band .band-inner{position:relative;padding:3.5rem 0}
+.band .band-inner{position:relative;padding:3.5rem 1.25rem}
 
 /* ---------- header ---------- */
 .site-header{position:sticky;top:0;z-index:50;background:rgba(251,248,242,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
