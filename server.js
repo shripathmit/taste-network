@@ -2,7 +2,8 @@
 //
 // Response inserts used to go straight from the browser to Supabase. They now
 // go through POST /api/submit-response, which:
-//   1. verifies a Cloudflare Turnstile CAPTCHA token server-side,
+//   1. verifies a Cloudflare Turnstile CAPTCHA token server-side (optional —
+//      skipped when TURNSTILE_SECRET_KEY isn't set; throttling still applies),
 //   2. re-enforces the throttle bounds (10 responses / 10 min per browser
 //      fingerprint, 60 / 5 min per test — the migration-003 RPC),
 //   3. inserts the response as review_status='pending' with the service-role
@@ -11,8 +12,8 @@
 // Env vars (Railway -> Variables):
 //   SUPABASE_URL, SUPABASE_ANON_KEY   (existing; anon key is public by design)
 //   SUPABASE_SERVICE_KEY              (new; server-side only, never shipped)
-//   TURNSTILE_SITE_KEY                (new; public, injected into the page)
-//   TURNSTILE_SECRET_KEY              (new; server-side only)
+//   TURNSTILE_SITE_KEY                (optional; public, injected into the page)
+//   TURNSTILE_SECRET_KEY              (optional; server-side only)
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -25,6 +26,9 @@ const SB_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
 const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || '';
 const TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY || '';
 const TURNSTILE_SECRET_KEY = process.env.TURNSTILE_SECRET_KEY || '';
+// CAPTCHA is optional: without a secret key the endpoint still works,
+// protected only by the throttle bounds + the admin review gate.
+const CAPTCHA_ON = !!TURNSTILE_SECRET_KEY;
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -101,7 +105,7 @@ const str = (v, max)=> String(v == null ? '' : v).slice(0, max);
 /* ---------- POST /api/submit-response ---------- */
 
 async function handleSubmitResponse(req, res){
-  if (!SB_URL || !SB_SERVICE_KEY || !TURNSTILE_SECRET_KEY){
+  if (!SB_URL || !SB_SERVICE_KEY){
     return json(res, 503, { error: 'not_configured' });
   }
   let b;
@@ -126,13 +130,16 @@ async function handleSubmitResponse(req, res){
     : { status: 'valid', creatorMark: null };
 
   if (!/^r_[A-Za-z0-9_-]+$/.test(id) || !testId || !/^fp_[a-z0-9]+$/.test(sessionFp) ||
-      !choice || !reason.trim() || !b.captchaToken){
+      !choice || !reason.trim() || (CAPTCHA_ON && !b.captchaToken)){
     return json(res, 400, { error: 'bad_request' });
   }
 
   // 1. CAPTCHA first — no point touching the DB for bots.
-  const human = await verifyTurnstile(String(b.captchaToken), clientIp(req));
-  if (!human) return json(res, 400, { error: 'captcha' });
+  //    Skipped entirely when Turnstile isn't configured.
+  if (CAPTCHA_ON){
+    const human = await verifyTurnstile(String(b.captchaToken || ''), clientIp(req));
+    if (!human) return json(res, 400, { error: 'captcha' });
+  }
 
   try {
     // 2. The test must be live and not the demo seed.
@@ -225,4 +232,5 @@ http.createServer((req, res) => {
     res.writeHead(405); res.end('method not allowed'); return;
   }
   serveStatic(req, res);
-}).listen(PORT, () => console.log('Taste Network listening on :' + PORT));
+}).listen(PORT, () => console.log('Taste Network listening on :' + PORT +
+  ' | captcha ' + (CAPTCHA_ON ? 'on' : 'off (throttle + review gate only)')));
