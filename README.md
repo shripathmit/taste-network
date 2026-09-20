@@ -81,8 +81,11 @@ response on a live, non-demo test; only owners moderate. Admins (via
 - Fingerprint/duplicate/one-per-session enforcement is now server-side via the
   unique constraint; the browser check is a courtesy on top.
 - Image uploads go to Supabase Storage with client-side compression.
-- Still to add before opening tests to the public: rate limiting + CAPTCHA on
-  the respondent endpoint, and production email deliverability checks.
+- Abuse protection on the respondent endpoint: server-side throttling is live
+  (`supabase/migrations/003_throttle.sql` — per-fingerprint and per-test
+  bounds enforced in the insert policy) plus client-side double-submit lock,
+  per-device gap, honeypot, and duplicate/fast flags. Still to add: CAPTCHA
+  for bot-grade defense, and production email deliverability checks.
 - Wire Stripe when you're ready for paid tests/payouts — the ledger schema already supports it (`delta`, `reason`, timestamps).
 
 ## Design

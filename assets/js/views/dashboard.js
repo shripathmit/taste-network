@@ -23,9 +23,14 @@ TN.views = TN.views || {};
         const n = S.responsesFor(t.id).length;
         const goal = (TN_CONFIG.goals.find(g=>g.id===t.goal)||{}).label || t.goal;
         const shareUrl = location.origin + location.pathname + "#/t/" + t.publicId;
+        // In-app "new responses" signal: count responses newer than the owner's last results view.
+        let seen = 0;
+        try { seen = parseInt(localStorage.getItem("tn_seen_"+t.id) || "0", 10); } catch(e){}
+        const newCount = S.responsesFor(t.id).filter(r=>r.createdAt>seen).length;
         return '<div class="test-row" data-test="'+t.id+'">'+
           '<div class="grow"><h3><a href="#/tests/'+t.id+'/results">'+ui.esc(t.title||"(untitled test)")+'</a></h3>'+
           '<div class="test-meta">'+statusBadge(t.status)+
+          (newCount?'<span class="badge badge-live">'+newCount+' new</span>':"")+
           '<span>'+n+' response'+(n===1?"":"s")+'</span>'+
           '<span>'+ui.esc(goal)+'</span>'+
           '<span>Created '+ui.fmtDate(t.createdAt)+'</span></div></div>'+

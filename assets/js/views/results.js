@@ -79,6 +79,8 @@ TN.views = TN.views || {};
     const t = S.getTest(testId);
     if (!t || t.ownerId!==user.id){ TN.views.notFound("Test not found."); return; }
     const app = document.getElementById("app");
+    // Owner has now seen results up to this moment — clears the dashboard "N new" badge.
+    try { localStorage.setItem("tn_seen_"+t.id, String(Date.now())); } catch(e){}
 
     const responses = S.visibleResponsesFor(t.id);
     const total = responses.length;

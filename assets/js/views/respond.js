@@ -199,6 +199,8 @@ TN.views = TN.views || {};
     }
 
     /* ---- submit ---- */
+    const LAST_SUBMIT_KEY = "tn_last_submit_v1";
+    const SUBMIT_THROTTLE_MS = 20000; // min gap between responses from this device
     async function submit(){
       if (preview){
         wrap('<div class="thanks"><div class="big">👀</div><h2>Preview complete</h2>'+
@@ -206,7 +208,20 @@ TN.views = TN.views || {};
           '<a class="btn btn-secondary" href="#/dashboard">Back to dashboard</a></div>');
         return;
       }
+      if (state.submitting) return; // double-submit lock
+      state.submitting = true;
       const fp = S.fingerprint();
+      if (!t.isDemo){
+        let lastSubmit = 0;
+        try { lastSubmit = parseInt(localStorage.getItem(LAST_SUBMIT_KEY) || "0", 10); } catch(e){}
+        if (Date.now() - lastSubmit < SUBMIT_THROTTLE_MS){
+          state.submitting = false;
+          wrap('<div class="thanks"><h2>Slow down a touch</h2>'+
+            '<p class="small">You just sent a response. Wait a few seconds before sending another.</p>'+
+            '<p class="small"><a href="javascript:history.back()">Go back</a></p></div>');
+          return;
+        }
+      }
       if (state.bot || S.hasResponded(t.id, fp)){
         wrap('<div class="thanks"><h2>Thanks — we’ve got your take</h2>'+
           '<p class="small">It looks like a response was already submitted from this browser for this test.</p></div>');
@@ -230,7 +245,9 @@ TN.views = TN.views || {};
         try {
           await S.addResponse(r);
           state.lastResponseId = r.id;
+          try { localStorage.setItem(LAST_SUBMIT_KEY, String(Date.now())); } catch(e){}
         } catch(ex){
+          state.submitting = false;
           if (ex.tnDuplicate){
             wrap('<div class="thanks"><h2>Thanks — we’ve got your take</h2>'+
               '<p class="small">It looks like a response was already submitted from this browser for this test.</p></div>');

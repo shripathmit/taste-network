@@ -61,10 +61,22 @@ TN.views = TN.views || {};
             }).join("")+'</tbody></table></div>'
           : '<div class="empty-state"><h3>Nothing flagged</h3><p>No responses are awaiting review.</p></div>';
         body.querySelectorAll("[data-ar]").forEach(b=>{
-          b.onclick = ()=>{
+          b.onclick = async ()=>{
             const all = S.getResponses();
             const r = all.find(x=>x.id===b.dataset.r);
-            if (r){ r.moderation.status = b.dataset.ar; S.saveResponses(all); ui.toast("Response marked "+b.dataset.ar+"."); TN.router.render(); }
+            if (!r) return;
+            b.disabled = true;
+            const prev = r.moderation.status;
+            r.moderation.status = b.dataset.ar;
+            try {
+              await S.updateResponse(r);
+              ui.toast("Response marked "+b.dataset.ar+".");
+              TN.router.render();
+            } catch(ex){
+              r.moderation.status = prev;
+              b.disabled = false;
+              ui.toast("Couldn’t save: "+(ex.message||"unknown error"));
+            }
           };
         });
       } else if (tab==="users"){

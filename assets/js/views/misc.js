@@ -5,11 +5,13 @@ TN.views = TN.views || {};
   const ui = TN.ui, S = TN.store, auth = TN.auth;
 
   TN.views.give = function(){
-    const tests = S.liveLinkTests();
+    // Private by default: only explicitly public demo tests are listed here.
+    // Real creator tests stay link-only and never appear in this directory.
+    const tests = S.liveLinkTests().filter(t=>t.isDemo);
     const app = document.getElementById("app");
     const arts = ["assets/img/band-abstract.jpg","assets/img/hero-abstract.jpg","assets/img/orb-abstract.jpg"];
     app.innerHTML = '<div class="wrap"><h2>Give feedback</h2>'+
-      '<p class="lede">Pick a test, compare the options, say what resonates — and why.</p>'+
+      '<p class="lede">Tests on Taste Network are private — creators share links directly with people whose judgment they want. The demo below is open to everyone; pick it, compare the options, say what resonates — and why.</p>'+
       (tests.length ? '<div class="card-grid mt">'+tests.map((t,i)=>{
         const n = S.responseCount(t.id);
         const goal = (TN_CONFIG.goals.find(g=>g.id===t.goal)||{}).label;
@@ -19,7 +21,7 @@ TN.views = TN.views || {};
           '<p class="small">'+t.variations.length+' options · '+n+' response'+(n===1?"":"s")+' so far</p>'+
           '<a class="btn btn-primary btn-sm" href="#/t/'+t.publicId+'">Weigh in</a></div></div>';
       }).join("")+'</div>'
-      : '<div class="empty-state"><div class="empty-art" style="background-image:url(assets/img/orb-abstract.jpg)"></div><h3>Nothing open right now</h3><p>When creators share open tests, they’ll appear here.</p></div>')+
+      : '<div class="empty-state"><div class="empty-art" style="background-image:url(assets/img/orb-abstract.jpg)"></div><h3>Nothing open right now</h3><p>Creator tests are shared by private link. Ask the creator for theirs.</p></div>')+
       '</div>';
   };
 
