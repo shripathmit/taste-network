@@ -10,7 +10,7 @@ window.TN = window.TN || {};
   const ui = TN.ui;
   const R = (key)=> TN.sb.configured() ? TN.sb.client().from(key) : null;
 
-  const cache = { tests: [], responses: [], credits: [], counts: {}, users: [] };
+  const cache = { tests: [], responses: [], credits: [], counts: {}, users: [], pendingCounts: {} };
   let readyResolve = null;
   const ready = new Promise(res => { readyResolve = res; });
   let refreshed = false;
@@ -50,7 +50,10 @@ window.TN = window.TN || {};
       respondentId: r.respondent_id,
       wantMoreFeedback: !!r.want_more_feedback,
       flags: r.flags || [], moderation: r.moderation || { status: "valid", creatorMark: null },
-      demo: !!r.demo
+      demo: !!r.demo,
+      // Admin review gate: only 'approved' responses are published.
+      // RLS hides pending/rejected from non-admins; admins see everything.
+      reviewStatus: r.review_status || "approved"
     };
   }
   function respToRow(r, respondentId){
@@ -98,6 +101,11 @@ window.TN = window.TN || {};
         const { data, error } = await TN.sb.client().rpc("live_response_counts");
         if (!error && data) cache.counts = Object.fromEntries(data.map(r => [r.test_id, Number(r.n)]));
       } catch(e){ /* non-fatal */ }
+      // per-test pending-review counts for the owner's "awaiting review" banner
+      try {
+        const { data, error } = await TN.sb.client().rpc("pending_review_counts");
+        if (!error && data) cache.pendingCounts = Object.fromEntries(data.map(r => [r.test_id, Number(r.n)]));
+      } catch(e){ /* non-fatal (e.g. pre-migration-004 DB) */ }
     } catch(e){
       console.warn("Taste Network: refresh failed:", e.message);
     }
@@ -146,7 +154,7 @@ window.TN = window.TN || {};
   }
   function responsesFor(testId){
     return cache.responses
-      .filter(r => r.testId === testId && r.moderation.status !== "removed")
+      .filter(r => r.testId === testId && r.moderation.status !== "removed" && r.reviewStatus === "approved")
       .sort((a,b)=>b.createdAt-a.createdAt);
   }
   function visibleResponsesFor(testId){
@@ -157,17 +165,54 @@ window.TN = window.TN || {};
     if (cache.counts && cache.counts[testId] != null) return cache.counts[testId];
     return responsesFor(testId).length;
   }
-  async function addResponse(r){
-    const me = TN.auth && TN.auth.currentUser();
-    const { error } = await R("responses").insert(respToRow(r, me && me.id));
-    if (error){
-      if (error.code === "23505" || /duplicate/i.test(error.message))
-        throw Object.assign(new Error("duplicate"), { tnDuplicate: true });
-      throw new Error("Couldn’t save your response: " + error.message);
+  // Responses awaiting admin review on this test (owner/admin only, via RPC).
+  function pendingCount(testId){
+    return (cache.pendingCounts && cache.pendingCounts[testId]) || 0;
+  }
+  // Response submission goes through the app's own /api/submit-response
+  // endpoint: the server verifies a Turnstile CAPTCHA, enforces the throttle,
+  // and inserts the response as review_status='pending' with the service-role
+  // key. The browser can no longer insert into the responses table directly
+  // (migration 004 removed the anonymous insert policy), so a bot cannot
+  // bypass the CAPTCHA by calling Supabase directly.
+  async function addResponse(r, captchaToken){
+    let res;
+    try {
+      res = await fetch("/api/submit-response", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: r.id, testId: r.testId, sessionFp: r.sessionFp,
+          choice: r.choice, reason: r.reason, followup: r.followup,
+          confidence: r.confidence, orderShown: r.orderShown,
+          durationMs: r.durationMs,
+          respondentName: r.respondentName, respondentEmail: r.respondentEmail,
+          wantMoreFeedback: r.wantMoreFeedback,
+          flags: r.flags, moderation: r.moderation,
+          captchaToken: captchaToken || ""
+        })
+      });
+    } catch(e){
+      throw new Error("Couldn’t reach the server. Check your connection and try again.");
     }
-    cache.responses.unshift(r);
-    markResponded(r.testId);
-    return r;
+    let data = {};
+    try { data = await res.json(); } catch(e){}
+    if (res.ok && data.ok){
+      markResponded(r.testId);
+      return r;
+    }
+    const code = data.error || "server_error";
+    if (code === "duplicate")
+      throw Object.assign(new Error("duplicate"), { tnDuplicate: true });
+    if (code === "throttled")
+      throw Object.assign(new Error("throttled"), { tnThrottled: true });
+    if (code === "captcha")
+      throw Object.assign(new Error("captcha"), { tnCaptcha: true });
+    if (code === "closed")
+      throw Object.assign(new Error("closed"), { tnClosed: true });
+    if (code === "not_configured")
+      throw new Error("Submissions aren’t set up on the server yet. Please try again later.");
+    throw new Error("Couldn’t save your response. Please try again.");
   }
   async function updateResponse(r){
     // optimistic cache update; rolled back on failure
@@ -175,8 +220,9 @@ window.TN = window.TN || {};
     const prev = i >= 0 ? cache.responses[i] : null;
     if (i >= 0) cache.responses[i] = r;
     try {
-      const { error } = await R("responses").update({ moderation: r.moderation, flags: r.flags })
-        .eq("id", r.id);
+      const { error } = await R("responses").update({
+        moderation: r.moderation, flags: r.flags, review_status: r.reviewStatus || "approved"
+      }).eq("id", r.id);
       if (error) throw new Error("Couldn't update the response: " + error.message);
     } catch(ex){
       if (prev && i >= 0) cache.responses[i] = prev;
@@ -278,6 +324,7 @@ window.TN = window.TN || {};
     getTests, saveTests, getTest, getTestByPublicId, upsertTest, myTests, liveLinkTests,
     getResponses, saveResponses, responsesFor, visibleResponsesFor, responseCount,
     addResponse, updateResponse, setWantMoreFeedback, hasResponded, duplicateReason,
+    pendingCount,
     getCredits, addCredit, creditBalance, creditHistory,
     getPendingCredits, addPendingCredit, claimPendingCredits,
     getUsers, findUserById,

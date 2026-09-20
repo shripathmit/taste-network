@@ -1,7 +1,8 @@
-/* Taste Network — Node smoke harness.
+/* Taste Network — Node smoke harness (extended for review gate + code sign-in).
    Loads every app JS file in browser order with a stubbed DOM + mocked
-   Supabase client, hydrates realistic rows, then renders all views.
-   Run: node tests/smoke.js   (exit 0 = all views render clean) */
+   Supabase client, hydrates realistic rows, renders all views, then asserts
+   the review-gate and email-code behaviors.
+   Run: node tests/smoke.js   (exit 0 = all green) */
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -91,6 +92,14 @@ const mockRows = {
     confidence: "very", order_shown: ["v_a", "v_b"], duration_ms: 91000, created_at: iso(now - 864e5),
     respondent_name: "Maya", respondent_email: "", want_more_feedback: false,
     flags: [], moderation: { status: "valid", creatorMark: null },
+    review_status: "approved",
+  }, {
+    id: "r_2", test_id: "t_demo0001", session_fp: "fp2", choice: "v_b",
+    reason: "Feels more human and warm.", followup: "",
+    confidence: "somewhat", order_shown: ["v_b", "v_a"], duration_ms: 45000, created_at: iso(now - 432e5),
+    respondent_name: "", respondent_email: "", want_more_feedback: false,
+    flags: [], moderation: { status: "valid", creatorMark: null },
+    review_status: "pending",
   }],
   credit_ledger: [{ id: "cr_1", user_id: "u_admin", delta: 1, reason: "Thoughtful feedback", created_at: iso(now - 864e5) }],
   profiles: [
@@ -98,26 +107,62 @@ const mockRows = {
     { id: "u_2", email: "taster@example.com", name: "Tess", role: "taster", is_admin: false, created_at: iso(now - 864e5) },
   ],
 };
-function q(rows) {
+const capturedUpdates = [];
+const otpCalls = [];
+let capturedSubmit = null;
+function q(table, rows) {
   const chain = {
     select() { return chain; }, order() { return chain; }, limit() { return chain; },
     eq() { return chain; },
+    maybeSingle() { return Promise.resolve({ data: rows[0] || null, error: null }); },
     upsert() { return Promise.resolve({ error: null }); },
     insert() { return Promise.resolve({ error: null }); },
-    update() { return Promise.resolve({ error: null }); },
+    update(payload) {
+      capturedUpdates.push({ table, payload });
+      return { eq: () => Promise.resolve({ error: null }) };
+    },
     then(res) { return Promise.resolve({ data: rows, error: null }).then(res); },
   };
   return chain;
 }
 TN.sb.configured = () => true;
 TN.sb.client = () => ({
-  from: (t) => q(mockRows[t] || []),
-  rpc: () => Promise.resolve({ data: [], error: null }),
-  auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => {} },
+  from: (t) => q(t, mockRows[t] || []),
+  rpc: (name) => {
+    if (name === "pending_review_counts")
+      return Promise.resolve({ data: [{ test_id: "t_demo0001", n: 1 }], error: null });
+    if (name === "live_response_counts")
+      return Promise.resolve({ data: [{ test_id: "t_demo0001", n: 1 }], error: null });
+    return Promise.resolve({ data: [], error: null });
+  },
+  auth: {
+    getSession: async () => ({ data: { session: null } }),
+    onAuthStateChange: () => {},
+    signInWithOtp: async (args) => { otpCalls.push({ kind: "send", args }); return { error: null }; },
+    verifyOtp: async (args) => {
+      otpCalls.push({ kind: "verify", args });
+      return { data: { user: { id: "u_new", email: args.email, user_metadata: {} } }, error: null };
+    },
+  },
   storage: { from: () => ({ upload: async () => ({ error: null }), getPublicUrl: () => ({ data: { publicUrl: "http://x/y.jpg" } }) }) },
 });
+// stub server endpoint for addResponse
+global.fetch = async (url, opts) => {
+  if (String(url).includes("/api/submit-response")) {
+    capturedSubmit = JSON.parse(opts.body);
+    return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({ ok: true, id: "r_new" }) };
+  }
+  throw new Error("unexpected fetch " + url);
+};
 // signed-in admin user
 TN.auth.currentUser = () => ({ id: "u_admin", email: "admin@taste.network", name: "Admin", role: "creator", is_admin: true });
+
+/* ---------- assertions ---------- */
+let passed = 0;
+function assert(cond, label) {
+  if (cond) { passed++; console.log("  ok  " + label); }
+  else { console.log("  FAIL " + label); process.exitCode = 1; }
+}
 
 /* ---------- run ---------- */
 (async () => {
@@ -150,9 +195,59 @@ TN.auth.currentUser = () => ({ id: "u_admin", email: "admin@taste.network", name
     }],
   ];
   for (const [name, fn] of cases) {
-    try { await fn(); console.log("  ok  " + name); }
-    catch (e) { failures.push(name + ": " + (e && e.stack || e)); console.log("  FAIL " + name); }
+    try { await fn(); console.log("  ok  render " + name); passed++; }
+    catch (e) { failures.push(name + ": " + (e && e.stack || e)); console.log("  FAIL render " + name); }
   }
-  console.log("\n" + (cases.length - failures.length) + " passed, " + failures.length + " failed");
+
+  // review gate: pending response is hidden from public/creator views
+  const forTest = TN.store.responsesFor("t_demo0001");
+  assert(forTest.length === 1 && forTest[0].id === "r_1", "responsesFor hides pending");
+  assert(TN.store.visibleResponsesFor("t_demo0001").length === 1, "visibleResponsesFor hides pending");
+  assert(TN.store.responseCount("t_demo0001") === 1, "responseCount uses server count (approved only)");
+  assert(TN.store.pendingCount("t_demo0001") === 1, "pendingCount from pending_review_counts RPC");
+
+  // review_status mapping on load
+  const r2 = TN.store.getResponses().find(x => x.id === "r_2");
+  assert(r2 && r2.reviewStatus === "pending", "review_status mapped to reviewStatus");
+
+  // addResponse goes to /api/submit-response with captcha token, stored as pending
+  const newR = {
+    id: "r_new", testId: "t_demo0001", sessionFp: "fpX", choice: "v_a",
+    reason: "A clear and specific reason.", followup: "", confidence: "very",
+    durationMs: 5000, orderShown: ["v_a", "v_b"], flags: [],
+    moderation: { status: "valid", creatorMark: null },
+    respondentName: "T", respondentEmail: "",
+  };
+  await TN.store.addResponse(newR, "captcha-token-123");
+  assert(capturedSubmit && capturedSubmit.captchaToken === "captcha-token-123", "addResponse sends captcha token to server");
+  assert(capturedSubmit && capturedSubmit.testId === "t_demo0001", "addResponse sends testId");
+  assert(capturedSubmit && capturedSubmit.reason === "A clear and specific reason.", "addResponse sends clamped fields");
+  const cached = TN.store.getResponses().find(x => x.id === "r_new");
+  assert(!cached, "new pending submission stays out of the local cache (invisible until approved)");
+  assert(TN.store.hasResponded("t_demo0001"), "addResponse marks test as responded");
+  assert(TN.store.responsesFor("t_demo0001").length === 1, "new pending response hidden from counts");
+
+  // updateResponse persists review_status (admin approve)
+  capturedUpdates.length = 0;
+  r2.reviewStatus = "approved";
+  await TN.store.updateResponse(r2);
+  assert(capturedUpdates.some(u => u.table === "responses" && u.payload.review_status === "approved"),
+    "updateResponse writes review_status");
+
+  // email code sign-in
+  await TN.auth.requestEmailCode("New@Example.com");
+  const sendCall = otpCalls.find(c => c.kind === "send");
+  assert(sendCall && sendCall.args.email === "new@example.com", "requestEmailCode normalizes email + calls signInWithOtp");
+  let badCode = null;
+  try { await TN.auth.verifyEmailCode("new@example.com", "12"); } catch (e) { badCode = e; }
+  assert(badCode && /6-digit/.test(badCode.message), "verifyEmailCode rejects malformed code");
+  const res = await TN.auth.verifyEmailCode("new@example.com", "123456");
+  const verifyCall = otpCalls.find(c => c.kind === "verify");
+  assert(verifyCall && verifyCall.args.token === "123456" && verifyCall.args.type === "email",
+    "verifyEmailCode calls verifyOtp with type email");
+  assert(res && res.user && res.user.id === "u_new", "verifyEmailCode returns signed-in user");
+
+  console.log("\n" + passed + " passed" + (failures.length ? ", " + failures.length + " render failures" : ""));
   if (failures.length) { console.log(failures.join("\n\n")); process.exit(1); }
+  if (process.exitCode) process.exit(1);
 })();

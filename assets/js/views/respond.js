@@ -187,6 +187,8 @@ TN.views = TN.views || {};
         '<div class="confidence-row" role="radiogroup" aria-label="Confidence">'+
         opts.map(([v,l])=>'<button class="choice'+(state.confidence===v?" selected":"")+'" data-conf="'+v+'" role="radio"><div class="c-text" style="font-size:1rem">'+l+'</div></button>').join("")+
         '</div>'+
+        '<div id="r-captcha" style="margin-top:1.25rem"></div>'+
+        '<p class="small" id="r-captcha-err" style="color:var(--danger,#b3261e);min-height:1.2em;margin:.25rem 0 0"></p>'+
         navBtns("Submit feedback", !!state.confidence));
       document.querySelectorAll("[data-conf]").forEach(b=>{
         b.onclick = ()=>{ state.confidence=b.dataset.conf;
@@ -196,6 +198,61 @@ TN.views = TN.views || {};
       });
       document.getElementById("r-back").onclick = ()=>{ state.step=4; sFollowup(); };
       document.getElementById("r-next").onclick = ()=>{ if(state.confidence) submit(); };
+      renderTurnstile();
+    }
+
+    /* ---- Cloudflare Turnstile CAPTCHA ----
+       The widget proves humanness in the browser; the token is verified
+       server-side (/api/submit-response) before anything is saved. */
+    const TURNSTILE_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    let turnstileWidgetId = null;
+    function turnstileSiteKey(){
+      try { return (window.TN_ENV && window.TN_ENV.turnstileSiteKey) || ""; } catch(e){ return ""; }
+    }
+    function ensureTurnstileScript(){
+      return new Promise((resolve)=>{
+        if (window.turnstile){ resolve(true); return; }
+        const done = (ok)=>resolve(ok);
+        if (document.querySelector("script[data-turnstile]")){
+          const iv = setInterval(()=>{ if (window.turnstile){ clearInterval(iv); done(true); } }, 200);
+          setTimeout(()=>{ clearInterval(iv); done(!!window.turnstile); }, 8000);
+          return;
+        }
+        const s = document.createElement("script");
+        s.src = TURNSTILE_SRC; s.async = true; s.defer = true;
+        s.setAttribute("data-turnstile", "1");
+        s.onload = ()=>done(true); s.onerror = ()=>done(false);
+        document.body.appendChild(s);
+        setTimeout(()=>done(!!window.turnstile), 8000);
+      });
+    }
+    async function renderTurnstile(){
+      const host = document.getElementById("r-captcha");
+      if (!host) return;
+      const key = turnstileSiteKey();
+      if (!key){
+        host.innerHTML = '<p class="small">Submissions are temporarily unavailable — verification isn’t configured yet.</p>';
+        return;
+      }
+      const ok = await ensureTurnstileScript();
+      const hostNow = document.getElementById("r-captcha");
+      if (!hostNow) return; // user navigated away while loading
+      if (!ok || !window.turnstile){
+        hostNow.innerHTML = '<p class="small">Couldn’t load the verification check. Please reload and try again.</p>';
+        return;
+      }
+      try { turnstileWidgetId = window.turnstile.render(hostNow, { sitekey: key, theme: "light" }); }
+      catch(e){ hostNow.innerHTML = '<p class="small">Couldn’t load the verification check. Please reload and try again.</p>'; }
+    }
+    function captchaToken(){
+      try {
+        if (window.turnstile && turnstileWidgetId !== null)
+          return window.turnstile.getResponse(turnstileWidgetId) || "";
+      } catch(e){}
+      return "";
+    }
+    function resetCaptcha(){
+      try { if (window.turnstile && turnstileWidgetId !== null) window.turnstile.reset(turnstileWidgetId); } catch(e){}
     }
 
     /* ---- submit ---- */
@@ -242,8 +299,16 @@ TN.views = TN.views || {};
         flags, moderation: { status: flags.length?"flagged":"valid", creatorMark: null }
       };
       if (!t.isDemo){
+        const token = captchaToken();
+        if (!token){
+          state.submitting = false;
+          const ce = document.getElementById("r-captcha-err");
+          if (ce) ce.textContent = "Please complete the verification check to submit.";
+          resetCaptcha();
+          return;
+        }
         try {
-          await S.addResponse(r);
+          await S.addResponse(r, token);
           state.lastResponseId = r.id;
           try { localStorage.setItem(LAST_SUBMIT_KEY, String(Date.now())); } catch(e){}
         } catch(ex){
@@ -251,6 +316,23 @@ TN.views = TN.views || {};
           if (ex.tnDuplicate){
             wrap('<div class="thanks"><h2>Thanks — we’ve got your take</h2>'+
               '<p class="small">It looks like a response was already submitted from this browser for this test.</p></div>');
+            return;
+          }
+          if (ex.tnThrottled){
+            wrap('<div class="thanks"><h2>Slow down a touch</h2>'+
+              '<p class="small">Too many responses in a short time. Please wait a few minutes and try again.</p></div>');
+            return;
+          }
+          if (ex.tnClosed){
+            wrap('<div class="thanks"><h2>This test is closed</h2>'+
+              '<p class="small">Thanks for your interest — the creator is no longer collecting responses.</p></div>');
+            return;
+          }
+          if (ex.tnCaptcha){
+            // back to the confidence step with a fresh widget
+            state.step = 5; turnstileWidgetId = null; sConfidence();
+            const ce = document.getElementById("r-captcha-err");
+            if (ce) ce.textContent = "The verification check didn’t pass — please try it again.";
             return;
           }
           wrap('<div class="thanks"><h2>Something went wrong</h2>'+
@@ -276,6 +358,7 @@ TN.views = TN.views || {};
       const me = TN.auth.currentUser();
       wrap('<div class="thanks"><img class="thanks-art" src="assets/img/orb-abstract.jpg" alt="" aria-hidden="true">'+
         '<h2>Thank you.</h2><p class="small" style="max-width:26em;margin:0 auto 1.5rem">Your perspective matters.</p>'+
+        (!t.isDemo?'<p class="small" style="max-width:26em;margin:0 auto 1.5rem">Your response is awaiting a quick review — the creator will see it once it’s approved.</p>':"")+
         '<label class="check-row" style="max-width:26em;margin:0 auto 1.5rem;text-align:left"><input type="checkbox" id="r-wantmore">'+
         '<span><span class="t">Keep me in the loop</span><br><span class="d">I’m open to giving feedback on future tests.</span></span></label>'+
         (me

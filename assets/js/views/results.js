@@ -126,6 +126,13 @@ TN.views = TN.views || {};
       '<div class="stat"><div class="n">'+Math.round(responses.reduce((s,r)=>s+r.durationMs,0)/Math.max(total,1)/1000)+'s</div><div class="l">avg. response time</div></div>'+
     '</div>';
 
+    /* admin pre-publish gate: tell the creator what's still in the queue */
+    const awaiting = S.pendingCount(t.id);
+    if (awaiting){
+      html += '<div class="review-banner"><strong>'+awaiting+'</strong> response'+(awaiting===1?" is":"s are")+
+        ' awaiting admin review — '+(awaiting===1?"it":"they")+' will appear here once approved.</div>';
+    }
+
     /* distribution */
     html += '<div class="panel"><h3>What people chose</h3>';
     if (!total){

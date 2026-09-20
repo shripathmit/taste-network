@@ -118,6 +118,35 @@ window.TN = window.TN || {};
     return { email };
   }
 
+  // Passwordless sign-in via a 6-digit code emailed to the user.
+  // Requires the "Magic Link" email template to include {{ .Token }}.
+  // shouldCreateUser defaults to true, so this one flow handles both
+  // signup and login: enter email, enter code, you're in.
+  async function requestEmailCode(email){
+    email = String(email||"").trim().toLowerCase();
+    if (!validEmail(email)) throw new Error("Please enter a valid email address.");
+    const { error } = await TN.sb.client().auth.signInWithOtp({
+      email, options: { shouldCreateUser: true }
+    });
+    if (error) throw new Error(error.message);
+    return { email };
+  }
+
+  async function verifyEmailCode(email, code){
+    email = String(email||"").trim().toLowerCase();
+    code = String(code||"").trim();
+    if (!/^[0-9]{6}$/.test(code)) throw new Error("Enter the 6-digit code from your email.");
+    const sb = TN.sb.client();
+    const { data, error } = await sb.auth.verifyOtp({ email, token: code, type: "email" });
+    if (error) throw new Error(
+      /expired/i.test(error.message)
+        ? "That code expired — request a new one."
+        : "That code doesn’t match — check your email and try again.");
+    await setCached(data.user);
+    const claimed = await TN.store.claimPendingCredits().catch(()=>0);
+    return { user: cachedUser, claimed };
+  }
+
   function currentUser(){ return cachedUser; }
 
   function isAdmin(user){
@@ -145,5 +174,6 @@ window.TN = window.TN || {};
   }
 
   TN.auth = { init, signup, login, logout, currentUser, requestMagicLink,
+              requestEmailCode, verifyEmailCode,
               isAdmin, setRole, updateProfile, validEmail };
 })();

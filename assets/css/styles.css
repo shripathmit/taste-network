@@ -288,6 +288,7 @@ img{max-width:100%;height:auto;display:block}
 .legal h2{margin-top:2rem}
 .demo-banner{background:var(--butter);color:#6E5416;border-radius:12px;padding:.7rem 1.1rem;font-size:.88rem;margin-bottom:1.5rem}
 .preview-banner{background:var(--lav);color:var(--lav-deep);border-radius:12px;padding:.7rem 1.1rem;font-size:.88rem;margin-bottom:1.5rem}
+.review-banner{background:var(--butter);color:#6E5416;border-radius:12px;padding:.7rem 1.1rem;font-size:.88rem;margin:1rem 0}
 .role-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin:1.5rem 0}
 @media(max-width:700px){.role-cards{grid-template-columns:1fr}}
 .how-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;margin:2rem 0}
