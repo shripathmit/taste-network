@@ -24,6 +24,14 @@ TN.views = TN.views || {};
       '<div class="hero-art"><img src="assets/img/hero-abstract.jpg" alt="" aria-hidden="true"></div>'+
     '</div></section>'+
 
+    '<section class="section" style="padding-top:0"><div class="wrap center" style="max-width:36em">'+
+      '<p class="eyebrow">Try it live</p>'+
+      '<h2>Feel it in 60 seconds.</h2>'+
+      '<p class="lede" style="margin:0 auto 1.5rem">Three headlines, one pick, tell us why — the exact flow your respondents get. No account, nothing saved.</p>'+
+      '<a class="btn btn-primary" href="#/t/demo-headline">Take the demo test</a>'+
+      '<p class="small" style="margin-top:1rem">Then run one on your own headline.</p>'+
+    '</div></section>'+
+
     '<section class="section"><div class="wrap">'+
       '<p class="eyebrow">How it works</p>'+
       '<h2>Three steps to a confident call</h2>'+
