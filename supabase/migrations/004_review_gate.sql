@@ -10,6 +10,8 @@
 --      and the app server always writes 'pending' explicitly, so the
 --      default never fires for new submissions. Re-runs are safe: there
 --      is no UPDATE to accidentally re-approve newer pending rows.
+--      A trigger (protect_review_status) ensures only admins can change
+--      review_status, so creators can't approve their own responses.
 --   2. The anonymous INSERT policy is REMOVED. Response inserts now go
 --      through the app's own /api/submit-response endpoint (Railway),
 --      which verifies a Cloudflare Turnstile CAPTCHA token server-side,
@@ -30,6 +32,36 @@ alter table public.responses
 
 create index if not exists responses_review_idx
   on public.responses (test_id, review_status, created_at desc);
+
+-- allowed values only (idempotent)
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'responses_review_status_check') then
+    alter table public.responses
+      add constraint responses_review_status_check
+      check (review_status in ('pending','approved','rejected'));
+  end if;
+end $$;
+
+-- only admins can CHANGE review_status. The "responses update by owner"
+-- policy lets creators update their test's rows (moderation/flags), but
+-- without this trigger a creator could approve their own pending responses
+-- via direct API calls, bypassing the review queue. The server inserts with
+-- the service-role key (INSERT, not UPDATE) so it is unaffected; admins
+-- approve through the client with their own JWT where is_admin() is true.
+create or replace function public.protect_review_status()
+returns trigger language plpgsql as $$
+begin
+  if new.review_status is distinct from old.review_status and not public.is_admin() then
+    raise exception 'only admins can change review_status';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists responses_protect_review_status on public.responses;
+create trigger responses_protect_review_status
+  before update of review_status on public.responses
+  for each row execute function public.protect_review_status();
 
 -- === 2. anonymous inserts are gone (server endpoint only) ===
 drop policy if exists "responses insert on live tests" on public.responses;
