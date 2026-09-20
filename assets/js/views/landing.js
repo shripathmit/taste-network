@@ -35,7 +35,7 @@ TN.views = TN.views || {};
     '</div></section>'+
 
     '<section class="band"><img class="band-art" src="assets/img/band-abstract.jpg" alt="" aria-hidden="true">'+
-      '<div class="wrap band-inner" style="max-width:36em">'+
+      '<div class="wrap band-inner">'+
         '<h2>Ship what resonates.</h2>'+
         '<p class="lede" style="margin-bottom:1.5rem">Your first test takes under five minutes.</p>'+
         '<a class="btn btn-primary" href="'+cta+'">Create a test</a>'+
