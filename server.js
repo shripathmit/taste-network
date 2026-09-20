@@ -50,10 +50,12 @@ function json(res, code, obj){
 
 function readJson(req){
   return new Promise((resolve, reject)=>{
-    let size = 0; const chunks = [];
-    req.on('data', c=>{ size += c.length; chunks.push(c);
-      if (size > 256*1024){ reject(new Error('too large')); req.destroy(); } });
-    req.on('end', ()=>{ try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); }
+    let size = 0, tooLarge = false; const chunks = [];
+    req.on('data', c=>{ size += c.length;
+      if (size > 256*1024){ tooLarge = true; return; } // keep draining, drop the rest
+      chunks.push(c); });
+    req.on('end', ()=>{ if (tooLarge) return reject(new Error('too large'));
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); }
       catch(e){ reject(new Error('bad json')); } });
     req.on('error', reject);
   });
