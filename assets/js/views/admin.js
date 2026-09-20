@@ -18,8 +18,9 @@ TN.views = TN.views || {};
     const avgMs = responses.length ? Math.round(responses.reduce((s,r)=>s+r.durationMs,0)/responses.length/1000) : 0;
     const creators = new Set(tests.filter(t=>t.status!=="draft").map(t=>t.ownerId));
     const repeat = [...creators].filter(id=>tests.filter(t=>t.ownerId===id&&t.status!=="draft").length>1).length;
-    const completion = tests.filter(t=>t.status!=="draft").length
-      ? Math.round(responses.length / tests.filter(t=>t.status!=="draft").reduce((s,t)=>s+t.config.targetResponses,0) * 100) : 0;
+    const targetSum = tests.filter(t=>t.status!=="draft").reduce((s,t)=>s+(Number(t.config.targetResponses)||0),0);
+    const completion = targetSum
+      ? Math.round(responses.length / targetSum * 100) : 0;
 
     const flagged = responses.filter(r=>r.moderation.status==="flagged"||r.moderation.creatorMark==="flagged");
 
@@ -46,7 +47,7 @@ TN.views = TN.views || {};
       const body = document.getElementById("admin-body");
       if (tab==="flagged"){
         body.innerHTML = flagged.length
-          ? '<table class="admin-table"><thead><tr><th>Test</th><th>Reason</th><th>Flags</th><th>Action</th></tr></thead><tbody>'+
+          ? '<div class="table-wrap"><table class="admin-table"><thead><tr><th>Test</th><th>Reason</th><th>Flags</th><th>Action</th></tr></thead><tbody>'+
             flagged.map(r=>{
               const t = S.getTest(r.testId);
               return row([
@@ -57,7 +58,7 @@ TN.views = TN.views || {};
                 '<button class="btn btn-secondary btn-sm" data-ar="hidden" data-r="'+r.id+'">Hidden</button> '+
                 '<button class="btn btn-danger-ghost btn-sm" data-ar="removed" data-r="'+r.id+'">Remove</button>'
               ]);
-            }).join("")+'</tbody></table>'
+            }).join("")+'</tbody></table></div>'
           : '<div class="empty-state"><h3>Nothing flagged</h3><p>No responses are awaiting review.</p></div>';
         body.querySelectorAll("[data-ar]").forEach(b=>{
           b.onclick = ()=>{
@@ -67,16 +68,16 @@ TN.views = TN.views || {};
           };
         });
       } else if (tab==="users"){
-        body.innerHTML = '<table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Credits</th></tr></thead><tbody>'+
-          users.map(u=>row([ui.esc(u.name),ui.esc(u.email),ui.esc(u.role||"—"),ui.fmtDate(u.createdAt),S.creditBalance(u.id)])).join("")+'</tbody></table>';
+        body.innerHTML = '<div class="table-wrap"><table class="admin-table"><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Joined</th><th>Credits</th></tr></thead><tbody>'+
+          users.map(u=>row([ui.esc(u.name),ui.esc(u.email),ui.esc(u.role||"—"),ui.fmtDate(u.createdAt),S.creditBalance(u.id)])).join("")+'</tbody></table></div>';
       } else if (tab==="tests"){
-        body.innerHTML = '<table class="admin-table"><thead><tr><th>Title</th><th>Owner</th><th>Status</th><th>Responses</th><th>Created</th></tr></thead><tbody>'+
+        body.innerHTML = '<div class="table-wrap"><table class="admin-table"><thead><tr><th>Title</th><th>Owner</th><th>Status</th><th>Responses</th><th>Created</th></tr></thead><tbody>'+
           tests.map(t=>{ const o=S.findUserById(t.ownerId);
-            return row([ui.esc(t.title),ui.esc(o?o.email:"—"),t.status,S.responsesFor(t.id).length,ui.fmtDate(t.createdAt)]); }).join("")+'</tbody></table>';
+            return row([ui.esc(t.title),ui.esc(o?o.email:"—"),t.status,S.responsesFor(t.id).length,ui.fmtDate(t.createdAt)]); }).join("")+'</tbody></table></div>';
       } else {
-        body.innerHTML = '<table class="admin-table"><thead><tr><th>Test</th><th>Choice</th><th>Reason</th><th>Confidence</th><th>Status</th></tr></thead><tbody>'+
+        body.innerHTML = '<div class="table-wrap"><table class="admin-table"><thead><tr><th>Test</th><th>Choice</th><th>Reason</th><th>Confidence</th><th>Status</th></tr></thead><tbody>'+
           responses.slice(0,100).map(r=>{ const t=S.getTest(r.testId);
-            return row([ui.esc(t?t.title:"—"),ui.esc(r.choice),"“"+ui.esc(r.reason.slice(0,100))+"…”",ui.esc(r.confidence),r.moderation.status]); }).join("")+'</tbody></table>'+
+            return row([ui.esc(t?t.title:"—"),ui.esc(r.choice),"“"+ui.esc(r.reason.slice(0,100))+"…”",ui.esc(r.confidence),r.moderation.status]); }).join("")+'</tbody></table></div>'+
           (responses.length>100?'<p class="small">Showing 100 of '+responses.length+'.</p>':"");
       }
     }

@@ -118,7 +118,7 @@ TN.views = TN.views || {};
 
     /* summary stats */
     html += '<div class="stat-row">'+
-      '<div class="stat"><div class="n">'+total+'</div><div class="l">responses · target '+t.config.targetResponses+'</div></div>'+
+      '<div class="stat"><div class="n">'+total+'</div><div class="l">'+total+' response'+(total===1?"":"s")+(t.config.targetResponses?' · target '+t.config.targetResponses:"")+'</div></div>'+
       '<div class="stat"><div class="n">'+pct(conf.very+conf.somewhat)+'%</div><div class="l">somewhat or very sure</div></div>'+
       '<div class="stat"><div class="n">'+responses.filter(r=>r.flags.length).length+'</div><div class="l">flagged for review</div></div>'+
       '<div class="stat"><div class="n">'+Math.round(responses.reduce((s,r)=>s+r.durationMs,0)/Math.max(total,1)/1000)+'s</div><div class="l">avg. response time</div></div>'+
