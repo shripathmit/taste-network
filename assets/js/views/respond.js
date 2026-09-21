@@ -20,7 +20,8 @@ TN.views = TN.views || {};
     const closed = t.status!=="live" || (t.config.deadline && t.config.deadline < Date.now());
     if (closed && !preview){
       app.innerHTML = '<div class="wrap-narrow"><div class="card center" style="max-width:480px;margin:3rem auto">'+
-        '<h2>This test is closed</h2><p class="small">Thanks for your interest — the creator is no longer collecting responses.</p></div></div>';
+        '<h2>This test is closed</h2><p class="small">Thanks for your interest — the creator is no longer collecting responses.</p>'+
+        homeLink+'</div></div>';
       return;
     }
 
@@ -44,6 +45,8 @@ TN.views = TN.views || {};
         progress()+inner+'</div>';
       window.scrollTo(0,0);
     }
+    const homeLink = '<p class="small center" style="margin-top:1.75rem"><a href="#/">&#8592; Back to home</a></p>';
+
     function navBtns(nextLabel, canNext){
       return '<div style="display:flex;justify-content:space-between;gap:1rem;margin-top:1.75rem">'+
         '<button class="btn btn-ghost" id="r-back">← Back</button>'+
@@ -262,7 +265,7 @@ TN.views = TN.views || {};
       if (preview){
         wrap('<div class="thanks"><div class="big">👀</div><h2>Preview complete</h2>'+
           '<p class="small">In the real flow this is where the thank-you screen appears. Nothing was saved.</p>'+
-          '<a class="btn btn-secondary" href="#/dashboard">Back to dashboard</a></div>');
+          '<a class="btn btn-secondary" href="#/dashboard">Back to dashboard</a>'+homeLink+'</div>');
         return;
       }
       if (state.submitting) return; // double-submit lock
@@ -275,13 +278,13 @@ TN.views = TN.views || {};
           state.submitting = false;
           wrap('<div class="thanks"><h2>Slow down a touch</h2>'+
             '<p class="small">You just sent a response. Wait a few seconds before sending another.</p>'+
-            '<p class="small"><a href="javascript:history.back()">Go back</a></p></div>');
+            '<p class="small"><a href="javascript:history.back()">Go back</a></p>'+homeLink+'</div>');
           return;
         }
       }
       if (state.bot || S.hasResponded(t.id, fp)){
         wrap('<div class="thanks"><h2>Thanks — we’ve got your take</h2>'+
-          '<p class="small">It looks like a response was already submitted from this browser for this test.</p></div>');
+          '<p class="small">It looks like a response was already submitted from this browser for this test.</p>'+homeLink+'</div>');
         return;
       }
       const durationMs = Date.now()-state.startedAt;
@@ -315,17 +318,17 @@ TN.views = TN.views || {};
           state.submitting = false;
           if (ex.tnDuplicate){
             wrap('<div class="thanks"><h2>Thanks — we’ve got your take</h2>'+
-              '<p class="small">It looks like a response was already submitted from this browser for this test.</p></div>');
+              '<p class="small">It looks like a response was already submitted from this browser for this test.</p>'+homeLink+'</div>');
             return;
           }
           if (ex.tnThrottled){
             wrap('<div class="thanks"><h2>Slow down a touch</h2>'+
-              '<p class="small">Too many responses in a short time. Please wait a few minutes and try again.</p></div>');
+              '<p class="small">Too many responses in a short time. Please wait a few minutes and try again.</p>'+homeLink+'</div>');
             return;
           }
           if (ex.tnClosed){
             wrap('<div class="thanks"><h2>This test is closed</h2>'+
-              '<p class="small">Thanks for your interest — the creator is no longer collecting responses.</p></div>');
+              '<p class="small">Thanks for your interest — the creator is no longer collecting responses.</p>'+homeLink+'</div>');
             return;
           }
           if (ex.tnCaptcha){
@@ -337,7 +340,7 @@ TN.views = TN.views || {};
           }
           wrap('<div class="thanks"><h2>Something went wrong</h2>'+
             '<p class="small">'+ui.esc(ex.message)+'</p>'+
-            '<p class="small"><a href="javascript:history.back()">Go back and try again</a></p></div>');
+            '<p class="small"><a href="javascript:history.back()">Go back and try again</a></p>'+homeLink+'</div>');
           return;
         }
       }
@@ -364,7 +367,7 @@ TN.views = TN.views || {};
         (me
           ? '<p class="small">+'+TN_CONFIG.credits.perThoughtfulResponse+' feedback credit added. <a href="#/credits">View credits</a></p>'
           : '<div class="card" style="max-width:26em;margin:0 auto"><p class="small"><strong>Want credit for your taste?</strong> Create a free account to collect feedback credits and run your own tests.</p><a class="btn btn-primary btn-sm" href="#/signup">Create a free account</a></div>')+
-        '</div>');
+        homeLink+'</div>');
       document.getElementById("r-wantmore").onchange = e=>{
         S.setWantMoreFeedback(state.lastResponseId, e.target.checked);
         if (e.target.checked) ui.toast("Noted — thanks for sticking around.");
