@@ -192,6 +192,41 @@ async function handleSubmitResponse(req, res){
   }
 }
 
+/* ---------- GET /api/admin/digest ---------- */
+// Public, counts-only digest for the founder's email notifier.
+// Returns no PII — just counts of new signups, new tests, and responses
+// awaiting admin review since the given timestamp. Safe to leave
+// unauthenticated: a count reveals nothing attributable.
+async function handleDigest(req, res){
+  if (!SB_URL || !SB_SERVICE_KEY){
+    return json(res, 503, { error: 'not_configured' });
+  }
+  const u = new URL(req.url, 'http://x');
+  const since = u.searchParams.get('since') || new Date(Date.now() - 24*3600*1000).toISOString();
+  if (isNaN(Date.parse(since))) return json(res, 400, { error: 'bad_request' });
+  const q = encodeURIComponent;
+  async function count(pathname){
+    try {
+      const r = await sbFetch(pathname, { method: 'HEAD' });
+      if (!r.ok) return null;
+      const cr = r.headers.get('content-range') || '';
+      const m = cr.match(/\/(\d+)/);
+      return m ? parseInt(m[1], 10) : null;
+    } catch(e){ return null; }
+  }
+  const [newProfiles, newTests, pendingReviews] = await Promise.all([
+    count('profiles?select=id&created_at=gte.' + q(since)),
+    count('tests?select=id&created_at=gte.' + q(since) + '&is_demo=eq.false'),
+    // null when migration 004 (review_status) hasn't been applied yet
+    count('responses?select=id&review_status=eq.pending&demo=eq.false')
+  ]);
+  return json(res, 200, {
+    ok: true, since,
+    new_profiles: newProfiles, new_tests: newTests,
+    pending_reviews: pendingReviews
+  });
+}
+
 /* ---------- static file serving ---------- */
 
 function serveStatic(req, res){
@@ -232,6 +267,13 @@ http.createServer((req, res) => {
   }
   if (req.method !== 'GET' && req.method !== 'HEAD'){
     res.writeHead(405); res.end('method not allowed'); return;
+  }
+  if (urlPath === '/api/admin/digest'){
+    handleDigest(req, res).catch(e=>{
+      console.error('digest fatal:', e.message);
+      json(res, 500, { error: 'server_error' });
+    });
+    return;
   }
   serveStatic(req, res);
 }).listen(PORT, () => console.log('Taste Network listening on :' + PORT +
