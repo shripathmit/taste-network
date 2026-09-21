@@ -207,7 +207,7 @@ async function handleDigest(req, res){
   const q = encodeURIComponent;
   async function count(pathname){
     try {
-      const r = await sbFetch(pathname, { method: 'HEAD' });
+      const r = await sbFetch(pathname, { method: 'HEAD', headers: { Prefer: 'count=exact' } });
       if (!r.ok) return null;
       const cr = r.headers.get('content-range') || '';
       const m = cr.match(/\/(\d+)/);
