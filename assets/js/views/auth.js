@@ -93,27 +93,38 @@ TN.views = TN.views || {};
 
   TN.views.login = function(){
     shell("Welcome back",
-      '<div id="code-flow"></div>'+
-      '<div class="divider"></div>'+
-      '<details><summary class="small">Prefer a password or magic link?</summary><div style="margin-top:1rem">'+
+      '<div class="tabs auth-tabs" role="tablist" aria-label="Sign-in method" style="margin-bottom:1.25rem">'+
+      '<button class="tab on" data-tab="code" role="tab" aria-selected="true">Email code</button>'+
+      '<button class="tab" data-tab="password" role="tab" aria-selected="false">Password</button>'+
+      '<button class="tab" data-tab="magic" role="tab" aria-selected="false">Magic link</button>'+
+      '</div>'+
+      '<div id="tab-code" role="tabpanel"><div id="code-flow"></div></div>'+
+      '<div id="tab-password" role="tabpanel" hidden>'+
       '<form id="f-login">'+
-        '<div class="field"><label for="li-email">Email</label>'+
-        '<input id="li-email" type="email" autocomplete="email" required></div>'+
-        '<div class="field"><label for="li-pass">Password</label>'+
-        '<input id="li-pass" type="password" autocomplete="current-password" required></div>'+
-        '<button class="btn btn-secondary btn-block" type="submit">Log in with password</button>'+
-      '</form>'+
-      '<div class="divider"></div>'+
+      '<div class="field"><label for="li-email">Email</label>'+
+      '<input id="li-email" type="email" autocomplete="email" required></div>'+
+      '<div class="field"><label for="li-pass">Password</label>'+
+      '<input id="li-pass" type="password" autocomplete="current-password" required></div>'+
+      '<button class="btn btn-primary btn-block" type="submit">Log in</button>'+
+      '</form></div>'+
+      '<div id="tab-magic" role="tabpanel" hidden>'+
       '<form id="f-magic">'+
-        '<p class="small" style="margin-bottom:.6rem"><strong>Magic link</strong> — we’ll email you a sign-in link instead.</p>'+
-        '<div class="field"><label for="ml-email">Email</label>'+
-        '<input id="ml-email" type="email" autocomplete="email" required></div>'+
-        '<button class="btn btn-secondary btn-block" type="submit">Email me a sign-in link</button>'+
-      '</form>'+
-      '</div></details>'+
+      '<p class="small" style="margin-bottom:.6rem">We’ll email you a sign-in link. Nothing to type.</p>'+
+      '<div class="field"><label for="ml-email">Email</label>'+
+      '<input id="ml-email" type="email" autocomplete="email" required></div>'+
+      '<button class="btn btn-secondary btn-block" type="submit">Email me a sign-in link</button>'+
+      '</form></div>'+
       '<p class="small center mt">No account yet? <a href="#/signup">Create one</a></p>',
-      "The fastest way in: we email you a 6-digit code.");
+      "Pick whichever way you like.");
     codeFlow("code-flow", "Email me a code →");
+    document.querySelectorAll(".auth-tabs .tab").forEach(btn=>{
+      btn.onclick = ()=>{
+        document.querySelectorAll(".auth-tabs .tab").forEach(b=>{ b.classList.remove("on"); b.setAttribute("aria-selected","false"); });
+        btn.classList.add("on");
+        btn.setAttribute("aria-selected","true");
+        ["code","password","magic"].forEach(t=>{ document.getElementById("tab-"+t).hidden = (t !== btn.dataset.tab); });
+      };
+    });
     document.getElementById("f-login").onsubmit = async e => {
       e.preventDefault();
       try {
