@@ -204,9 +204,11 @@ TN.views = TN.views || {};
       renderTurnstile();
     }
 
-    /* ---- Cloudflare Turnstile CAPTCHA ----
+    /* ---- Cloudflare Turnstile CAPTCHA (optional) ----
        The widget proves humanness in the browser; the token is verified
-       server-side (/api/submit-response) before anything is saved. */
+       server-side (/api/submit-response) before anything is saved.
+       When no site key is configured the widget is hidden and the
+       submission goes through with throttling + the admin review gate only. */
     const TURNSTILE_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
     let turnstileWidgetId = null;
     function turnstileSiteKey(){
@@ -234,7 +236,7 @@ TN.views = TN.views || {};
       if (!host) return;
       const key = turnstileSiteKey();
       if (!key){
-        host.innerHTML = '<p class="small">Submissions are temporarily unavailable — verification isn’t configured yet.</p>';
+        host.style.display = 'none'; // CAPTCHA not configured — submit without it
         return;
       }
       const ok = await ensureTurnstileScript();
@@ -302,8 +304,9 @@ TN.views = TN.views || {};
         flags, moderation: { status: flags.length?"flagged":"valid", creatorMark: null }
       };
       if (!t.isDemo){
+        const needCaptcha = !!turnstileSiteKey();
         const token = captchaToken();
-        if (!token){
+        if (needCaptcha && !token){
           state.submitting = false;
           const ce = document.getElementById("r-captcha-err");
           if (ce) ce.textContent = "Please complete the verification check to submit.";
